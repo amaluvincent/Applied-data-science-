@@ -346,6 +346,7 @@ def stat_pop():
     
 # Reading the data files
 stat_pop()
+print()
 
 
 
