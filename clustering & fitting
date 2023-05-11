@@ -1,0 +1,251 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue May  9 13:37:07 2023
+
+@author: Amalu Vincent
+"""
+
+#Importing the necessary libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.optimize as opt
+from sklearn import cluster 
+import errors as err
+
+# Reading input files
+def read_file(file_name):
+    """
+    This function takes name of the file and reads it from local directory and
+    loads it into a dataframe.Then transposes the dataframe and returns both
+    the first and transposed dataframes. It also sets the header for the
+    transposed dataframe
+    Parameters
+    ----------
+    file_name : string
+        Name of the file to be read into the dataframe.
+    Returns
+    -------
+    A dataframe loaded from the file and it's transpose.
+    """
+
+    df = pd.read_csv(file_name)
+    df_changed = df.drop(
+        columns=["Country Code", "Indicator Name", "Indicator Code"])
+
+    df_changed = df_changed.replace(np.nan, 0)
+
+    # Header
+    df_changed = df_changed.rename(columns={'Country Name': 'Year'})
+    df_transposed = np.transpose(df_changed)
+    # Header setting
+    header = df_transposed.iloc[0].values.tolist()
+    df_transposed.columns = header
+    df_transposed = df_transposed.reset_index()
+    df_transposed = df_transposed.rename(columns={"index": "year"})
+    df_transposed = df_transposed.iloc[1:]
+    df_transposed = df_transposed.dropna()
+    df_transposed["year"] = df_transposed["year"].str[:4]
+    df_transposed["year"] = pd.to_numeric(df_transposed["year"])
+    df_transposed["Ireland"] = pd.to_numeric(
+        df_transposed["Ireland"])
+    df_transposed["Japan"] = pd.to_numeric(df_transposed["Japan"])
+    df_transposed["year"] = df_transposed["year"].astype(int)
+    print(df_transposed['year'])
+    return df, df_transposed
+
+
+df_meth, df_methtrans = read_file("Methane_Emission.csv")
+df_gdp,df_gdptrans = read_file("GDP.csv")
+df_renew,df_renewtrans = read_file("Renewable_Energy_Use.csv")
+
+def curve_fun(t, scale, growth):
+  """
+
+  Parameters
+  ----------
+  t : TYPE
+  List of values
+  scale : TYPE
+  Scale of curve.
+  growth : TYPE
+  Growth of the curve.
+  Returns
+  -------
+  c : TYPE
+  Result
+  """
+  c = scale * np.exp(growth * (t-1960))
+  return c
+
+#Calling the file read function
+df_meth = read_file("Methane_Emission.csv")
+df_gdp = read_file("GDP.csv")
+df_renew = read_file("Renewable_Energy_Use.csv")
+
+# Doing curve fit for Methane Emission in Ireland
+param, cov = opt.curve_fit(curve_fun,df_methtrans["year"],df_methtrans["Ireland"],p0=[4e8,0.1])
+sigma = np.sqrt(np.diag(cov))
+
+# Error
+low,up = err.err_ranges(df_methtrans["year"],curve_fun,param,sigma)
+df_methtrans["fit_value"] = curve_fun(df_methtrans["year"], * param)
+
+#1.Plotting the Methane emission values for Ireland
+plt.figure()
+plt.title("Methane Emissions (metric tons per capita) - Ireland",fontweight='bold')
+plt.plot(df_methtrans["year"],df_methtrans["Ireland"],label="data")
+plt.plot(df_methtrans["year"],df_methtrans["fit_value"],c="red",label="fit")
+plt.fill_between(df_methtrans["year"],low,up,alpha=0.1)
+plt.legend()
+plt.xlim(1990,2019)
+plt.xlabel("Year",fontweight='bold')
+plt.ylabel("Methane",fontweight='bold')
+plt.savefig("Methane Emission_IRELAND.png", dpi = 300, bbox_inches='tight')
+plt.show()
+
+#2.Plotting the predicted values for Ireland Methane Emission
+plt.figure()
+plt.title("Methane Emission Prediction for 2030-Ireland",fontweight='bold')
+pred_year = np.arange(1990,2030)
+pred_irl = curve_fun(pred_year,*param)
+plt.plot(df_methtrans["year"],df_methtrans["Ireland"],label="data")
+plt.plot(pred_year,pred_irl,label="predicted values")
+plt.legend()
+plt.xlabel("Year",fontweight='bold')
+plt.ylabel("Methane Emission",fontweight='bold')
+plt.savefig("Methane_Emission_Ireland_Predicted.png", dpi = 300, bbox_inches='tight')
+plt.show()
+
+#Curve fit for Japan
+param, cov = opt.curve_fit(curve_fun,df_methtrans["year"],df_methtrans["Japan"],p0=[4e8, 0.1])
+sigma = np.sqrt(np.diag(cov))
+print(*param)
+
+# Error
+low,up = err.err_ranges(df_methtrans["year"],curve_fun,param,sigma)
+df_methtrans["fit_value"] = curve_fun(df_methtrans["year"], * param)
+
+#3.Plotting the predicted values for Japan
+plt.figure()
+plt.title(" Methane Emission prediction for 2030 -Japan",fontweight='bold')
+pred_year = np.arange(1990,2030)
+pred_jpn = curve_fun(pred_year,*param)
+plt.plot(df_methtrans["year"],df_methtrans["Japan"],label="data")
+plt.plot(pred_year,pred_jpn,label="predicted values")
+plt.legend()
+plt.xlabel("Year",fontweight='bold')
+plt.ylabel("Methane emission",fontweight='bold')
+plt.savefig("Methane_Japan_Prediction.png", dpi = 300, bbox_inches='tight')
+plt.show()
+
+#curve fit for Ireland
+param, cov = opt.curve_fit(curve_fun,df_renewtrans["year"],df_renewtrans["Ireland"],p0=[4e8,0.1])
+sigma = np.sqrt(np.diag(cov))
+print(*param)
+
+#Error
+low,up = err.err_ranges(df_renewtrans["year"],curve_fun,param,sigma)
+df_renewtrans["fit_value"] = curve_fun(df_renewtrans["year"], * param)
+
+#4.Plotting the renewable energy use of Ireland
+plt.figure()
+plt.title("Renewable Energy Use- Ireland",fontweight='bold')
+plt.plot(df_renewtrans["year"],df_renewtrans["Ireland"],label="data")
+plt.plot(df_renewtrans["year"],df_renewtrans["fit_value"],c="red",label="fit")
+plt.fill_between(df_renewtrans["year"],low,up,alpha=0.5)
+plt.legend()
+plt.xlim(1990,2019)
+plt.xlabel("Year",fontweight='bold')
+plt.ylabel("Renewable energy(% of total energy use)",fontweight='bold')
+plt.savefig("Renewable_Ireland.png", dpi = 300, bbox_inches='tight')
+plt.show()
+
+# Curve fit for renewable energy Japan
+param, cov = opt.curve_fit(curve_fun,df_renewtrans["year"],df_renewtrans["Japan"],p0=[4e8,0.1])
+sigma = np.sqrt(np.diag(cov))
+print(*param)
+
+# Error
+low,up = err.err_ranges(df_renewtrans["year"],curve_fun,param,sigma)
+df_renewtrans["fit_value"] = curve_fun(df_renewtrans["year"], * param)
+
+#5.Plotting the renewable energy prediction of Japan
+plt.figure()
+plt.title("Renewable Energy Prediction - Japan",fontweight='bold')
+pred_year = np.arange(1990,2030)
+pred_jpn = curve_fun(pred_year,*param)
+plt.plot(df_renewtrans["year"],df_renewtrans["Japan"],label="data")
+plt.plot(pred_year,pred_jpn,label="predicted values")
+plt.legend()
+plt.xlabel("Year",fontweight='bold')
+plt.ylabel("Renewable Energy(% of total energy use)",fontweight='bold')
+plt.savefig("Renewable_Prediction_Japan.png", dpi = 300, bbox_inches='tight')
+plt.show()
+
+#6.Plotting GDP per capita of Ireland & Japan
+print(df_gdptrans)
+plt.figure()
+plt.plot(df_gdptrans["year"], df_gdptrans["Ireland"])
+plt.plot(df_gdptrans["year"], df_gdptrans["Japan"])
+plt.xlim(1991,2020)
+plt.xlabel("Year",fontweight='bold')
+plt.ylabel("GDP Per Capita",fontweight='bold')
+plt.legend(['IRL','JPN'])
+plt.title("GDP Per Capita",fontweight='bold')
+plt.savefig("GDP.png", dpi = 300, bbox_inches='tight')
+plt.show()
+
+# Curve fit for renewable energy Japan
+param, cov = opt.curve_fit(curve_fun,df_renewtrans["year"],df_renewtrans["Japan"],p0=[4e8,0.1])
+sigma = np.sqrt(np.diag(cov))
+print(*param)
+
+# Error
+low,up = err.err_ranges(df_methtrans["year"],curve_fun,param,sigma)
+df_methtrans["fit_value"] = curve_fun(df_methtrans["year"], * param)
+
+#7.Scatter plot  for Japan & Ireland Methane Emission
+df_methtrans= df_methtrans.iloc[:,[112,120]]
+print(df_methtrans)
+# Create cluster and visualize Methane emission of given countries
+kmean = cluster.KMeans(n_clusters=2).fit(df_methtrans)
+label = kmean.labels_
+print(label)
+plt.scatter(df_methtrans["Ireland"],df_methtrans["Japan"],c=label,cmap="jet")
+plt.title("Methane Emission of Ireland and Japan",fontweight='bold')
+plt.xlabel("Methane emission of Ireland",fontweight='bold')
+plt.ylabel("Methane emission of Japan",fontweight='bold')
+c = kmean.cluster_centers_
+plt.savefig("Scatter_Japan_Ireland_Methane.png", dpi = 300, bbox_inches='tight')
+plt.show()
+
+
+#8.Methane emission vs Renewable energy usage-Ireland
+ireland = pd.DataFrame()
+ireland["Methane_Emission"] = df_methtrans["Ireland"]
+ireland["Renewable_Energy"] = df_renewtrans["Ireland"]
+kmean = cluster.KMeans(n_clusters=2).fit(ireland)
+label = kmean.labels_
+plt.scatter(ireland["Methane_Emission"],ireland["Renewable_Energy"],c=label,cmap="Blues")
+plt.title("Methane Emission vs RenewableEnergy-Ireland",fontweight='bold')
+plt.xlabel("Methane Emission",fontweight='bold')
+plt.ylabel("Renewable Energy",fontweight='bold')
+plt.savefig("Scatter Methane vs Renewable-Ireland.png",dpi=300,bbox_inches='tight')
+c=kmean.cluster_centers_
+
+for t in range(2):
+    xc,yc = c[t,:]
+    plt.plot(xc,yc,"ok",markersize=8)
+plt.figure()
+plt.show()  
+    
+# Plotting Scatter Matrix for Ireland  using function
+def data_f(country):
+    pd.plotting.scatter_matrix(country, figsize=(14.0, 12.0))
+    plt.tight_layout()
+    plt.show()
+data_f(ireland)
+
+ 
+
