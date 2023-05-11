@@ -58,7 +58,7 @@ def read_file(file_name):
 df_meth, df_methtrans = read_file("Methane_Emission.csv")
 df_gdp,df_gdptrans = read_file("GDP.csv")
 df_renew,df_renewtrans = read_file("Renewable_Energy_Use.csv")
-
+#Using Function
 def curve_fun(t, scale, growth):
   """
 
